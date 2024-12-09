@@ -15,28 +15,6 @@ def dict_to_namespace(data):
 	else:
 		return data
 
-def nanstd(input, dim=None, keepdim=False, unbiased=True):
-	# Replace NaNs with zeros
-	input_without_nans = input.clone()
-	input_without_nans[input.isnan()] = 0
-
-	# Count the number of non-NaN elements
-	count = torch.sum(~input.isnan(), dim=dim, keepdim=keepdim)
-
-	# Compute the mean of non-NaN values
-	mean = torch.sum(input_without_nans, dim=dim, keepdim=keepdim) / count
-
-	try:
-		mean = mean[:, :, None, None]
-	except:
-		mean = mean[None, :]
-
-	# Compute the variance of non-NaN values
-	variance = torch.sum((input_without_nans - mean) ** 2, dim=dim, keepdim=keepdim) / (count - 1 if unbiased else count)
-
-	# Return the standard deviation
-	return torch.sqrt(variance)
-
 class ERA5Pollutants(Dataset):
 	def __init__(self, config, mode = 'train', means = None, stds = None):
 		super().__init__()
