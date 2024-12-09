@@ -95,7 +95,6 @@ if __name__ == '__main__':
 	config = dict_to_namespace(yaml.safe_load(open('config.yaml').read()))
 	train_ds = ERA5Pollutants(config, mode = 'train', iterate_over='locations')
 	train_dl = DataLoader(train_ds, batch_size=32, shuffle=True, collate_fn=train_ds.collate_fn)
-	breakpoint()
 
 	val_dataset = ERA5Pollutants(config, mode = 'val')
 	val_dl = DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=train_dataset.collate_fn)
