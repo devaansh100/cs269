@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import sys
 sys.path.append('../')
-from haaq_preprocessing import convert_to_weatherbench_grid
+from haaq_preprocessing import convert_to_weatherbench_grid, format_date
 import pickle as pkl
 
 import matplotlib.pyplot as plt
@@ -24,6 +24,9 @@ else:
 	df = pd.read_csv('../data_files/haaq_processed.csv')
 	df = df.progress_apply(convert_to_weatherbench_grid, axis=1)
 	df.to_csv('../data_files/haaq_coords.csv')
+
+df['Sampling Date'] = df['Sampling Date'].apply(format_date)
+# df['Sampling Date'] = pd.to_datetime(df['Sampling Date'], format='%d-%m-%Y')
 
 pollutant = sys.argv[1]
 choice = int(sys.argv[2])
