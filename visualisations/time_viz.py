@@ -34,6 +34,10 @@ plt.xticks(df.index[::200], rotation=45)
 # add moving average
 df["MA"] = df[variable].rolling(window=100).mean()
 plt.plot(df.index, df["MA"], label="Moving Average", color="red")
+
+# add title
+plt.title(f"{variable} Time Series")
+
 plt.legend()
 
 # Use tight layout
@@ -64,6 +68,8 @@ corr = corr.loc[
 ]
 
 sns.heatmap(corr, annot=True)
+
+plt.title("Correlation between Physical & Chemical Variables")
 
 plt.tight_layout()
 
