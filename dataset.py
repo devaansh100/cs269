@@ -3,9 +3,9 @@ from torch.utils.data import Dataset, DataLoader
 import xarray as xr
 import yaml
 from types import SimpleNamespace
-from dask.diagnostics import ProgressBar
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 
 def dict_to_namespace(data):
 	if isinstance(data, dict):
@@ -18,14 +18,20 @@ def dict_to_namespace(data):
 class ERA5Pollutants(Dataset):
 	def __init__(self, config, mode = 'train', means = None, stds = None):
 		super().__init__()
-		if config.load_data:
+		if len(config.load_data) > 0:
 			data = pd.read_csv(config.load_data)
+			data['time'] = pd.to_datetime(data['time'])
 		else:
 			data = pd.read_csv(config.haaq.path)
+			data['Sampling Date'] = pd.to_datetime(data['Sampling Date'], format='%d-%m-%Y')
+			data = data.rename(columns={'longitude_era5': 'longitude', 'latitude_era5': 'latitude', 'Sampling Date': 'time'})
+			data.drop(columns=['Unnamed: 0', 'index'], inplace=True)
+
 			assert config.processed_data != '', 'Pass processed_data in the config - file will be stored here'
 			era5 = xr.open_zarr(config.era5.path)
 			daily_avg = era5.coarsen(time=4).mean()
 			daily_avg = daily_avg.assign_coords(time=daily_avg["time"].dt.floor("D"))
+			daily_avg = xr.open_zarr('output.zarr')
 			del era5
 
 			new_lats = np.arange(-90 + config.haaq.res/2, 90, config.haaq.res)
@@ -34,10 +40,10 @@ class ERA5Pollutants(Dataset):
 			del daily_avg
 
 			for var in list(daily_avg_subset.data_vars):
-			if var not in config.input_vars:
-				daily_avg_subset = daily_avg_subset.drop_vars(var)
-			else:
-				data[var] = 0.
+				if var not in config.input_vars:
+					daily_avg_subset = daily_avg_subset.drop_vars(var)
+				else:
+					data[var] = 0.
 
 			drop_level = [50, 100,  150,  200,  250,  300,  400,  500,  600,  700,  850,  925]
 			daily_avg_subset = daily_avg_subset.drop_sel(level=drop_level)
@@ -48,9 +54,8 @@ class ERA5Pollutants(Dataset):
 					data[i, var] = daily_avg_subset.sel(time=data.iloc[i]['time'], latitude=data.iloc[i]['latitude'], longitude=data.iloc[i]['longitude'])[0].values().item()
 
 			data.to_csv(config.processed_data)
-
+			del daily_avg_subset
 		
-		data['time'] = pd.to_datetime(data['time'])
 		if mode == 'train':
 			time_mask = (data['time'] >= config.train.time_slice[0]) & (data['time'] <= config.train.time_slice[1])
 		elif mode == 'val':
@@ -93,7 +98,7 @@ class ERA5Pollutants(Dataset):
 
 if __name__ == '__main__':
 	config = dict_to_namespace(yaml.safe_load(open('config.yaml').read()))
-	train_ds = ERA5Pollutants(config, mode = 'train', iterate_over='locations')
+	train_ds = ERA5Pollutants(config, mode = 'train')
 	train_dl = DataLoader(train_ds, batch_size=32, shuffle=True, collate_fn=train_ds.collate_fn)
 
 	val_dataset = ERA5Pollutants(config, mode = 'val')
@@ -101,4 +106,3 @@ if __name__ == '__main__':
 
 	test_dataset = ERA5Pollutants(config, mode = 'test')
 	test_dl = DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=train_dataset.collate_fn)
-
